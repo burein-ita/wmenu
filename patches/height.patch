@@ -1,0 +1,123 @@
+From 3725c6fadcd201e8ff552a296f3cd4f424a080c5 Mon Sep 17 00:00:00 2001
+From: Juan Scerri <juan.scerri.js@gmail.com>
+Date: Wed, 16 Apr 2025 21:47:34 +0200
+Subject: [PATCH] Add wmenu -H flag
+
+This flag allows the user to specify the line height usually in terms of
+pixels.
+---
+ docs/wmenu.1.scd |  5 +++++
+ menu.c           | 15 +++++++++++----
+ menu.h           |  1 +
+ render.c         |  7 ++++---
+ 4 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/docs/wmenu.1.scd b/docs/wmenu.1.scd
+index 4519e8b..16f7544 100644
+--- a/docs/wmenu.1.scd
++++ b/docs/wmenu.1.scd
+@@ -7,6 +7,7 @@ wmenu - dynamic menu for Wayland
+ # SYNOPSIS
+ 
+ *wmenu* [-biPv] \
++  [-H _height_] \
+   [-f _font_] \
+   [-l _lines_] \
+   [-o _output_] \
+@@ -42,6 +43,10 @@ $PATH and runs the result.
+ *-v*
+ 	prints version information to stdout, then exits.
+ 
++*-H* _height_
++	defines the height of a line (usually in pixels). For more information,
++	see https://docs.gtk.org/Pango/const.SCALE.html
++
+ *-f* _font_
+ 	defines the font used. For more information, see
+ 	https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html
+diff --git a/menu.c b/menu.c
+index 207d71c..8ebffd9 100644
+--- a/menu.c
++++ b/menu.c
+@@ -89,7 +89,8 @@ void menu_getopts(struct menu *menu, int argc, char *argv[]) {
+ 		"\t[-N color] [-n color] [-M color] [-m color] [-S color] [-s color]\n";
+ 
+ 	int opt;
+-	while ((opt = getopt(argc, argv, "bhiPvf:l:o:p:N:n:M:m:S:s:")) != -1) {
++	int line_height = 0;
++	while ((opt = getopt(argc, argv, "bhiPvH:f:l:o:p:N:n:M:m:S:s:")) != -1) {
+ 		switch (opt) {
+ 		case 'b':
+ 			menu->bottom = true;
+@@ -103,6 +104,9 @@ void menu_getopts(struct menu *menu, int argc, char *argv[]) {
+ 		case 'v':
+ 			puts("wmenu " VERSION);
+ 			exit(EXIT_SUCCESS);
++		case 'H':
++			line_height = atoi(optarg);
++			break;
+ 		case 'f':
+ 			menu->font = optarg;
+ 			break;
+@@ -156,19 +160,22 @@ void menu_getopts(struct menu *menu, int argc, char *argv[]) {
+ 		exit(EXIT_FAILURE);
+ 	}
+ }
+ 
+ // Compute menu line height and padding.
+ void menu_calc_height(struct menu *menu) {
+-	int height = get_font_height(menu->font);
+-	menu->line_height = height + 2;
++	menu->font_height = get_font_height(menu->font);
++	menu->line_height = menu->font_height + 2;
++	if(line_height > menu->line_height) {
++		menu->line_height = line_height;
++	}
+ 	menu->height = menu->line_height;
+ 	if (menu->lines > 0) {
+ 		if (menu->item_count < (size_t)menu->lines) {
+ 			menu->lines = menu->item_count;
+ 		}
+ 		menu->height += menu->height * menu->lines;
+ 	}
+-	menu->padding = height / 2;
++	menu->padding = menu->font_height / 2;
+ }
+ 
+ // Add an item to the menu.
+diff --git a/menu.h b/menu.h
+index fdd9ad2..19e0970 100644
+--- a/menu.h
++++ b/menu.h
+@@ -58,6 +58,7 @@ struct menu {
+ 
+ 	int width;
+ 	int height;
++	int font_height;
+ 	int line_height;
+ 	int padding;
+ 	int inputw;
+diff --git a/render.c b/render.c
+index e86d93b..956b92f 100644
+--- a/render.c
++++ b/render.c
+@@ -107,12 +107,13 @@ static void render_input(struct menu *menu, cairo_t *cairo) {
+ static void render_cursor(struct menu *menu, cairo_t *cairo) {
+ 	const int cursor_width = 2;
+ 	const int cursor_margin = 2;
+-	int cursor_pos = menu->promptw + menu->padding
++	int cursor_x_pos = menu->promptw + menu->padding
+ 		+ text_width(cairo, menu->font, menu->input)
+ 		- text_width(cairo, menu->font, &menu->input[menu->cursor])
+ 		- cursor_width / 2;
+-	cairo_rectangle(cairo, cursor_pos, cursor_margin, cursor_width,
+-			menu->line_height - 2 * cursor_margin);
++	int cursor_y_pos = (menu->line_height - menu->font_height) / 2 + cursor_margin;
++	cairo_rectangle(cairo, cursor_x_pos, cursor_y_pos, cursor_width,
++			menu->font_height - cursor_margin);
+ 	cairo_fill(cairo);
+ }
+ 
+-- 
+2.47.3
+

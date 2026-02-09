@@ -1,0 +1,96 @@
+From 937c0c4e774a70f72561c1ade723f71785f3b3a4 Mon Sep 17 00:00:00 2001
+From: Fouad <fouad.fakih@gmail.com>
+Date: Sun, 16 Mar 2025 01:02:54 +0000
+Subject: [PATCH] add option to set exclusive zone
+
+---
+ docs/wmenu.1.scd | 5 ++++-
+ menu.c           | 7 +++++--
+ menu.h           | 2 ++
+ wayland.c        | 7 ++++++-
+ 4 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/docs/wmenu.1.scd b/docs/wmenu.1.scd
+index 4519e8b..5a5165c 100644
+--- a/docs/wmenu.1.scd
++++ b/docs/wmenu.1.scd
+@@ -6,7 +6,7 @@ wmenu - dynamic menu for Wayland
+ 
+ # SYNOPSIS
+ 
+-*wmenu* [-biPv] \
++*wmenu* [-bxiPv] \
+   [-H _height_] \
+   [-f _font_] \
+   [-l _lines_] \
+@@ -32,6 +32,9 @@ $PATH and runs the result.
+ *-b*
+ 	wmenu appears at the bottom of the screen.
+ 
++*-x*
++	wmenu avoids overlapping panels and occluding other exclusive surfaces.
++
+ *-i*
+ 	wmenu matches menu items case insensitively.
+ 
+diff --git a/menu.c b/menu.c
+index 207d71c..c4ca658 100644
+--- a/menu.c
++++ b/menu.c
+@@ -85,15 +85,18 @@ static bool parse_color(const char *color, uint32_t *result) {
+ // Parse menu options from command line arguments.
+ void menu_getopts(struct menu *menu, int argc, char *argv[]) {
+ 	const char *usage =
+-		"Usage: wmenu [-biPv] [-f font] [-l lines] [-o output] [-p prompt]\n"
++		"Usage: wmenu [-bxiPv] [-f font] [-l lines] [-o output] [-p prompt]\n"
+ 		"\t[-N color] [-n color] [-M color] [-m color] [-S color] [-s color]\n";
+ 
+ 	int opt;
+ 	int line_height = 0;
+-	while ((opt = getopt(argc, argv, "bhiPvH:f:l:o:p:N:n:M:m:S:s:")) != -1) {
++	while ((opt = getopt(argc, argv, "bxhiPvH:f:l:o:p:N:n:M:m:S:s:")) != -1) {
+ 		switch (opt) {
+ 		case 'b':
+ 			menu->bottom = true;
+ 			break;
++		case 'x':
++			menu->exclusive = true;
++			break;
+ 		case 'i':
+ 			menu->strncmp = strncasecmp;
+diff --git a/menu.h b/menu.h
+index fdd9ad2..37b55b1 100644
+--- a/menu.h
++++ b/menu.h
+@@ -31,6 +31,8 @@ struct page {
+ struct menu {
+ 	// Whether the menu appears at the bottom of the screen
+ 	bool bottom;
++	// Set exclusive zone
++	bool exclusive;
+ 	// The function used to match menu items
+ 	int (*strncmp)(const char *, const char *, size_t);
+ 	// Whether the input is a password
+diff --git a/wayland.c b/wayland.c
+index 823ced1..37105ad 100644
+--- a/wayland.c
++++ b/wayland.c
+@@ -454,9 +454,14 @@ int menu_run(struct menu *menu) {
+ 		anchor |= ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
+ 	}
+ 
++	if (menu->exclusive) {
++		zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, 0);
++	} else {
++		zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, -1);
++	}
++
+ 	zwlr_layer_surface_v1_set_anchor(layer_surface, anchor);
+ 	zwlr_layer_surface_v1_set_size(layer_surface, 0, menu->height);
+-	zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, -1);
+ 	zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface, true);
+ 	zwlr_layer_surface_v1_add_listener(layer_surface, &layer_surface_listener, context);
+ 
+-- 
+2.47.3
+
