@@ -62,6 +62,7 @@ struct menu {
 	int height;
 	int font_height;
 	int line_height;
+	int total_height;
 	int padding;
 	int inputw;
 	int promptw;

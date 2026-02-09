@@ -26,13 +26,14 @@
 struct menu *menu_create(menu_callback callback) {
 	struct menu *menu = calloc(1, sizeof(struct menu));
 	menu->strncmp = strncmp;
-	menu->font = "monospace 10";
-	menu->normalbg = 0x222222ff;
-	menu->normalfg = 0xbbbbbbff;
-	menu->promptbg = 0x005577ff;
-	menu->promptfg = 0xeeeeeeff;
-	menu->selectionbg = 0x005577ff;
-	menu->selectionfg = 0xeeeeeeff;
+	menu->total_height = 0;
+	menu->font = "monospace 11";
+	menu->normalbg = 0x000000ff;
+	menu->normalfg = 0x808080ff;
+	menu->promptbg = 0x808080ff;
+	menu->promptfg = 0x000000ff;
+	menu->selectionbg = 0x808080ff;
+	menu->selectionfg = 0x000000ff;
 	menu->callback = callback;
 	menu->test_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
 	menu->test_cairo = cairo_create(menu->test_surface);
@@ -89,7 +90,6 @@ void menu_getopts(struct menu *menu, int argc, char *argv[]) {
 		"\t[-N color] [-n color] [-M color] [-m color] [-S color] [-s color]\n";
 
 	int opt;
-	int line_height = 0;
 	while ((opt = getopt(argc, argv, "bxhiPvH:f:l:o:p:N:n:M:m:S:s:")) != -1) {
 		switch (opt) {
 		case 'b':
@@ -108,7 +108,7 @@ void menu_getopts(struct menu *menu, int argc, char *argv[]) {
 			puts("wmenu " VERSION);
 			exit(EXIT_SUCCESS);
 		case 'H':
-			line_height = atoi(optarg);
+			menu->total_height = atoi(optarg);
 			break;
 		case 'f':
 			menu->font = optarg;
@@ -168,8 +168,8 @@ void menu_getopts(struct menu *menu, int argc, char *argv[]) {
 void menu_calc_height(struct menu *menu) {
 	menu->font_height = get_font_height(menu->font);
 	menu->line_height = menu->font_height + 2;
-	if(line_height > menu->line_height) {
-		menu->line_height = line_height;
+	if(menu->total_height > menu->line_height) {
+		menu->line_height = menu->total_height;
 	}
 	menu->height = menu->line_height;
 	if (menu->lines > 0) {
